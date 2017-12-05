@@ -54,6 +54,9 @@ optimizer = optim.SGD(model.parameters(), lr=args.lr, momentum=args.momentum)
 def train(epoch):
     model.train()
     for batch_idx, (data, target) in enumerate(train_loader):
+        if use_cuda:
+            data = data.cuda()
+            target = target.cuda()
         data, target = Variable(data), Variable(target)
         optimizer.zero_grad()
         output = model(data)
@@ -71,6 +74,9 @@ def validation():
     validation_loss = 0
     correct = 0
     for data, target in val_loader:
+        if use_cuda:
+            data = data.cuda()
+            target = target.cuda()
         data, target = Variable(data, volatile=True), Variable(target)
         output = model(data)
         validation_loss += F.nll_loss(output, target, size_average=False).data[0] # sum up batch loss
