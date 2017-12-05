@@ -7,6 +7,8 @@ import torch.optim as optim
 from torchvision import datasets, transforms
 from torch.autograd import Variable
 
+use_cuda = torch.cuda.is_available()
+
 # Training settings
 parser = argparse.ArgumentParser(description='PyTorch GTSRB example')
 parser.add_argument('--data', type=str, default='data', metavar='D',
@@ -79,6 +81,10 @@ def validation():
 
 
 for epoch in range(1, args.epochs + 1):
+    # Use GPU if available
+    if use_cuda:
+        model.cuda()
+
     train(epoch)
     validation()
     model_file = 'model_' + str(epoch) + '.pth'

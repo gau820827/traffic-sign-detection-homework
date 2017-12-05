@@ -49,7 +49,7 @@ for f in tqdm(os.listdir(test_dir)):
         pred = output.data.max(1, keepdim=True)[1]
 
         file_id = f[0:5]
-        output_file.write("%s,%d\n" % (file_id, pred))
+        output_file.write("%s,%d\n" % (file_id, pred.numpy()))
 
 output_file.close()
 
