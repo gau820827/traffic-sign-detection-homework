@@ -45,9 +45,11 @@ val_loader = torch.utils.data.DataLoader(
 ### Neural Network and Optimizer
 # We define neural net in model.py so that it can be reused by the evaluate.py script
 from model import Net
-model = Net()
+from model import ResNet, BasicBlock
+model = ResNet(BasicBlock, [3, 3, 3])
 
 optimizer = optim.SGD(model.parameters(), lr=args.lr, momentum=args.momentum)
+
 
 def train(epoch):
     model.train()
@@ -62,6 +64,7 @@ def train(epoch):
             print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
                 epoch, batch_idx * len(data), len(train_loader.dataset),
                 100. * batch_idx / len(train_loader), loss.data[0]))
+
 
 def validation():
     model.eval()

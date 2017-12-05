@@ -9,8 +9,9 @@ from torch.autograd import Variable
 import torch.nn.functional as F
 import torchvision.datasets as datasets
 
-from data import initialize_data # data.py in the same folder
+from data import initialize_data    # data.py in the same folder
 from model import Net
+from model import ResNet, BasicBlock
 
 parser = argparse.ArgumentParser(description='PyTorch GTSRB evaluation script')
 parser.add_argument('--data', type=str, default='data', metavar='D',
@@ -23,13 +24,14 @@ parser.add_argument('--outfile', type=str, default='gtsrb_kaggle.csv', metavar='
 args = parser.parse_args()
 
 state_dict = torch.load(args.model)
-model = Net()
+model = ResNet()
 model.load_state_dict(state_dict)
 model.eval()
 
 from data import data_transforms
 
 test_dir = args.data + '/test_images'
+
 
 def pil_loader(path):
     # open path as file to avoid ResourceWarning (https://github.com/python-pillow/Pillow/issues/835)
@@ -55,6 +57,3 @@ output_file.close()
 
 print("Succesfully wrote " + args.outfile + ', you can upload this file to the kaggle '
       'competition at https://www.kaggle.com/c/nyu-cv-fall-2017/')
-        
-
-
