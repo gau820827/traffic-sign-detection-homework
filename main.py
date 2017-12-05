@@ -30,7 +30,7 @@ args = parser.parse_args()
 torch.manual_seed(args.seed)
 
 ### Data Initialization and Loading
-from data import initialize_data, data_transforms # data.py in the same folder
+from data import initialize_data, data_transforms, transform_train # data.py in the same folder
 initialize_data(args.data) # extracts the zip files, makes a validation set
 
 train_loader = torch.utils.data.DataLoader(
@@ -46,7 +46,7 @@ val_loader = torch.utils.data.DataLoader(
 # We define neural net in model.py so that it can be reused by the evaluate.py script
 from model import Net
 from model import ResNet, BasicBlock
-model = ResNet(BasicBlock, [3, 3, 3])
+model = ResNet(BasicBlock, [3, 3, 3, 3])
 
 optimizer = optim.SGD(model.parameters(), lr=args.lr, momentum=args.momentum)
 

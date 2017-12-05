@@ -76,9 +76,10 @@ class ResNet(nn.Module):
         self.relu = nn.ReLU(inplace=True)
 
         self.layer1 = self.make_layer(block, 32, layers[0])
-        self.layer2 = self.make_layer(block, 64, layers[1], stride=2)
+        self.layer2 = self.make_layer(block, 64, layers[1])
         self.layer3 = self.make_layer(block, 128, layers[2], stride=2)
-        self.avg_pool = nn.AvgPool2d(2)
+        self.layer4 = self.make_layer(block, 256, layers[3], stride=2)
+        self.avg_pool = nn.AvgPool2d(4)
 
         self.fc1 = nn.Linear(2048, 1024)
         self.fc2 = nn.Linear(1024, num_classes)
@@ -116,5 +117,5 @@ class ResNet(nn.Module):
         return F.log_softmax(out)
 
 if __name__ == '__main__':
-    resnet = ResNet(BasicBlock, [3, 3, 3])
+    resnet = ResNet(BasicBlock, [3, 3, 3, 3])
     resnet.cuda()
