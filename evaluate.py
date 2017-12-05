@@ -24,7 +24,7 @@ parser.add_argument('--outfile', type=str, default='gtsrb_kaggle.csv', metavar='
 args = parser.parse_args()
 
 state_dict = torch.load(args.model)
-model = ResNet()
+model = ResNet(BasicBlock, [3, 3, 3])
 model.load_state_dict(state_dict)
 model.eval()
 
