@@ -117,6 +117,32 @@ class ResNet(nn.Module):
         return F.log_softmax(out)
 
 
+class LocalNet(nn.Module):
+    def __init__(self):
+        super(LocalNet, self).__init__()
+        self.conv1 = nn.Sequential(
+            nn.Conv2d(3, 100, kernel_size=5),
+            nn.BatchNorm2d(100),
+            nn.ReLU(True)
+        )
+
+        self.conv2 = nn.Sequential(
+            nn.Conv2d(100, 200, kernel_size=5),
+            nn.BatchNorm2d(200),
+            nn.ReLU(True)
+        )
+
+    def forward(self, x):
+        out1 = F.max_pool2d(self.conv1(x), 2)
+        out2 = F.max_pool2d(self.conv2(out1), 2)
+        out1 = F.max_pool2d(out1, 4)
+        out2 = F.max_pool2d(out2, 2)
+
+        # Concatenate out1 and out2
+        batch_size = out1.size()[0]
+        out = torch.cat((out1.view(batch_size, -1), out2.view(batch_size, -1)), dim=1)
+        return out
+
 # Spatial Network
 class SpaNet(nn.Module):
     def __init__(self):
@@ -142,24 +168,26 @@ class SpaNet(nn.Module):
         self.fc1 = nn.Linear(1000, 500)
         self.fc2 = nn.Linear(500, nclasses)
 
-        # Spatial transformer localization-network
-        self.localization = nn.Sequential(
-            nn.Conv2d(3, 16, kernel_size=7, padding=3),
-            nn.MaxPool2d(2, stride=2),
-            nn.ReLU(True),
-            nn.Conv2d(16, 32, kernel_size=5, padding=2),
-            nn.MaxPool2d(2, stride=2),
-            nn.ReLU(True),
-            nn.Conv2d(32, 64, kernel_size=3, padding=1),
-            nn.MaxPool2d(2, stride=2),
-            nn.ReLU(True)
-        )
+        self.localization = LocalNet()
+        # # Spatial transformer localization-network
+        # self.localization = nn.Sequential(
+        #     nn.Conv2d(3, 100, kernel_size=5),
+        #     nn.BatchNorm2d(100),
+        #     nn.ReLU(True),
+
+        #     nn.Conv2d(100, 200, kernel_size=5),
+        #     nn.BatchNorm2d(200),
+        #     nn.ReLU(True),
+
+        #     nn.MaxPool2d(2, stride=4),
+        #     nn.MaxPool2d(2, stride=2)
+        # )
 
         # Regressor for the 3 * 2 affine matrix
         self.fc_loc = nn.Sequential(
-            nn.Linear(64 * 4 * 4, 64),
+            nn.Linear(1700, 100),
             nn.ReLU(True),
-            nn.Linear(64, 3 * 2)
+            nn.Linear(100, 3 * 2)
         )
 
         # Initialize the weights/bias with identity transformation
@@ -169,7 +197,6 @@ class SpaNet(nn.Module):
     # Spatial transformer network forward function
     def stn(self, x):
         xs = self.localization(x)
-        xs = xs.view(-1, 64 * 4 * 4)
         theta = self.fc_loc(xs)
         theta = theta.view(-1, 2, 3)
 
