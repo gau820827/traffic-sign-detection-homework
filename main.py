@@ -30,7 +30,7 @@ args = parser.parse_args()
 torch.manual_seed(args.seed)
 
 ### Data Initialization and Loading
-from data import initialize_data, data_transforms, transform_train # data.py in the same folder
+from data import initialize_data, data_transforms # data.py in the same folder
 initialize_data(args.data) # extracts the zip files, makes a validation set
 
 train_loader = torch.utils.data.DataLoader(
