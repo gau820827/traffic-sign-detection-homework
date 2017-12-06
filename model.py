@@ -116,6 +116,71 @@ class ResNet(nn.Module):
         out = self.fc2(out)
         return F.log_softmax(out)
 
+
+# Spatial Network
+class SpaNet(nn.Module):
+    def __init__(self):
+        super(SpaNet, self).__init__()
+        self.conv1 = nn.Conv2d(3, 32, kernel_size=3, padding=1)
+        self.conv2 = nn.Conv2d(32, 64, kernel_size=3, padding=1)
+        self.conv3 = nn.Conv2d(64, 128, kernel_size=3, padding=1)
+        self.conv4 = nn.Conv2d(128, 256, kernel_size=3, padding=1)
+        self.fc1 = nn.Linear(1024, 1024)
+        self.fc2 = nn.Linear(1024, nclasses)
+
+        # Spatial transformer localization-network
+        self.localization = nn.Sequential(
+            # Conv part
+            nn.Conv2d(3, 16, kernel_size=7, padding=3),
+            nn.MaxPool2d(2, stride=2),
+            nn.ReLU(True),
+            nn.Conv2d(16, 32, kernel_size=5, padding=2),
+            nn.MaxPool2d(2, stride=2),
+            nn.ReLU(True),
+            nn.Conv2d(32, 64, kernel_size=3, padding=1),
+            nn.MaxPool2d(2, stride=2),
+            nn.ReLU(True)
+        )
+
+        # Regressor for the 3 * 2 affine matrix
+        self.fc_loc = nn.Sequential(
+            nn.Linear(64 * 4 * 4, 64),
+            nn.ReLU(True),
+            nn.Linear(64, 3 * 2)
+        )
+
+        # Initialize the weights/bias with identity transformation
+        self.fc_loc[2].weight.data.fill_(0)
+        self.fc_loc[2].bias.data = torch.FloatTensor([1, 0, 0, 0, 1, 0])
+
+    # Spatial transformer network forward function
+    def stn(self, x):
+        xs = self.localization(x)
+        xs = xs.view(-1, 64 * 4 * 4)
+        theta = self.fc_loc(xs)
+        theta = theta.view(-1, 2, 3)
+
+        grid = F.affine_grid(theta, x.size())
+        x = F.grid_sample(x, grid)
+
+        return x
+
+    def forward(self, x):
+        # transform the input
+        x = self.stn(x)
+
+        # Perform the usual froward pass
+        x = F.relu(F.max_pool2d(self.conv1(x), 2))
+        x = F.relu(F.max_pool2d(F.dropout2d((self.conv2(x))), 2))
+        x = F.relu(F.max_pool2d(F.dropout2d((self.conv3(x))), 2))
+        x = F.relu(F.max_pool2d(F.dropout2d((self.conv4(x))), 2))
+        x = x.view(-1, 1024)
+        x = F.relu(self.fc1(x))
+        x = F.dropout(x, training=self.training)
+        x = self.fc2(x)
+        return F.log_softmax(x)
+
+
 if __name__ == '__main__':
     resnet = ResNet(BasicBlock, [3, 3, 3, 3])
     resnet.cuda()

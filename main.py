@@ -46,7 +46,9 @@ val_loader = torch.utils.data.DataLoader(
 # We define neural net in model.py so that it can be reused by the evaluate.py script
 from model import Net
 from model import ResNet, BasicBlock
-model = ResNet(BasicBlock, [3, 3, 3, 3])
+from model import SpaNet
+# model = ResNet(BasicBlock, [3, 3, 3, 3])
+model = SpaNet()
 
 optimizer = optim.SGD(model.parameters(), lr=args.lr, momentum=args.momentum)
 
