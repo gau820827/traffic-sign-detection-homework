@@ -121,6 +121,16 @@ class ResNet(nn.Module):
 class SpaNet(nn.Module):
     def __init__(self):
         super(SpaNet, self).__init__()
+        # Color transformer
+        self.colorization = nn.Sequential(
+            nn.Conv2d(3, 10, kernel_size=1),
+            nn.BatchNorm2d(10),
+            nn.ReLU(True),
+            nn.Conv2d(10, 3, kernel_size=1),
+            nn.BatchNorm2d(3),
+            nn.ReLU(True)
+        )
+
         self.conv1 = nn.Conv2d(3, 32, kernel_size=3, padding=1)
         self.bn1 = nn.BatchNorm2d(32)
         self.conv2 = nn.Conv2d(32, 64, kernel_size=3, padding=1)
@@ -134,7 +144,6 @@ class SpaNet(nn.Module):
 
         # Spatial transformer localization-network
         self.localization = nn.Sequential(
-            # Conv part
             nn.Conv2d(3, 16, kernel_size=7, padding=3),
             nn.MaxPool2d(2, stride=2),
             nn.ReLU(True),
@@ -170,6 +179,9 @@ class SpaNet(nn.Module):
         return x
 
     def forward(self, x):
+        # colorization
+        x = self.colorization(x)
+
         # transform the input
         x = self.stn(x)
 
