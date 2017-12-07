@@ -12,6 +12,7 @@ import torchvision.datasets as datasets
 from data import initialize_data    # data.py in the same folder
 from model import Net
 from model import ResNet, BasicBlock
+from model import SpaNet
 
 parser = argparse.ArgumentParser(description='PyTorch GTSRB evaluation script')
 parser.add_argument('--data', type=str, default='data', metavar='D',
@@ -24,7 +25,8 @@ parser.add_argument('--outfile', type=str, default='gtsrb_kaggle.csv', metavar='
 args = parser.parse_args()
 
 state_dict = torch.load(args.model)
-model = ResNet(BasicBlock, [3, 3, 3])
+# model = ResNet(BasicBlock, [3, 3, 3])
+model = SpaNet()
 model.load_state_dict(state_dict)
 model.eval()
 

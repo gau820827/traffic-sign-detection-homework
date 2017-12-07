@@ -50,8 +50,8 @@ from model import SpaNet
 # model = ResNet(BasicBlock, [3, 3, 3, 3])
 model = SpaNet()
 
-optimizer = optim.SGD(model.parameters(), lr=args.lr, momentum=args.momentum)
-
+# optimizer = optim.SGD(model.parameters(), lr=args.lr, momentum=args.momentum)
+optimizer = optim.Adam(model.parameters(), lr=args.lr)
 
 def train(epoch):
     model.train()

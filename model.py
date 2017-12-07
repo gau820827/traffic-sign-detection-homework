@@ -78,10 +78,9 @@ class ResNet(nn.Module):
         self.layer1 = self.make_layer(block, 32, layers[0])
         self.layer2 = self.make_layer(block, 64, layers[1])
         self.layer3 = self.make_layer(block, 128, layers[2], stride=2)
-        self.layer4 = self.make_layer(block, 256, layers[3], stride=2)
         self.avg_pool = nn.AvgPool2d(4)
 
-        self.fc1 = nn.Linear(2048, 1024)
+        self.fc1 = nn.Linear(1024, 1024)
         self.fc2 = nn.Linear(1024, num_classes)
 
     def make_layer(self, block, out_channels, num_blocks, stride=1):
@@ -118,29 +117,41 @@ class ResNet(nn.Module):
 
 
 class LocalNet(nn.Module):
-    def __init__(self):
+    def __init__(self, input_channel, layers):
         super(LocalNet, self).__init__()
         self.conv1 = nn.Sequential(
-            nn.Conv2d(3, 100, kernel_size=5),
-            nn.BatchNorm2d(100),
+            nn.Conv2d(input_channel, layers[0], kernel_size=5, padding=2),
+            nn.BatchNorm2d(layers[0]),
             nn.ReLU(True)
         )
 
         self.conv2 = nn.Sequential(
-            nn.Conv2d(100, 200, kernel_size=5),
-            nn.BatchNorm2d(200),
+            nn.Conv2d(layers[0], layers[1], kernel_size=5, padding=2),
+            nn.BatchNorm2d(layers[1]),
+            nn.ReLU(True)
+        )
+
+        self.conv3 = nn.Sequential(
+            nn.Conv2d(layers[1], layers[2], kernel_size=5, padding=2),
+            nn.BatchNorm2d(layers[2]),
             nn.ReLU(True)
         )
 
     def forward(self, x):
         out1 = F.max_pool2d(self.conv1(x), 2)
         out2 = F.max_pool2d(self.conv2(out1), 2)
-        out1 = F.max_pool2d(out1, 4)
-        out2 = F.max_pool2d(out2, 2)
+        
+        
+        # out2 = F.max_pool2d(out2, 2)
+        
+        out3 = F.max_pool2d(self.conv3(out2), 2)
+
 
         # Concatenate out1 and out2
         batch_size = out1.size()[0]
-        out = torch.cat((out1.view(batch_size, -1), out2.view(batch_size, -1)), dim=1)
+        #out = torch.cat((out1.view(batch_size, -1), out2.view(batch_size, -1),
+        #                 out3.view(batch_size, -1)), dim=1)
+        out = out3.view(batch_size, -1)
         return out
 
 # Spatial Network
@@ -165,39 +176,42 @@ class SpaNet(nn.Module):
         self.bn3 = nn.BatchNorm2d(200)
         self.conv4 = nn.Conv2d(200, 250, kernel_size=3, padding=1)
         self.bn4 = nn.BatchNorm2d(250)
-        self.fc1 = nn.Linear(1000, 500)
+        self.fc1 = nn.Linear(2250, 500)
         self.fc2 = nn.Linear(500, nclasses)
-
-        self.localization = LocalNet()
-        # # Spatial transformer localization-network
-        # self.localization = nn.Sequential(
-        #     nn.Conv2d(3, 100, kernel_size=5),
-        #     nn.BatchNorm2d(100),
-        #     nn.ReLU(True),
-
-        #     nn.Conv2d(100, 200, kernel_size=5),
-        #     nn.BatchNorm2d(200),
-        #     nn.ReLU(True),
-
-        #     nn.MaxPool2d(2, stride=4),
-        #     nn.MaxPool2d(2, stride=2)
-        # )
+        
+        # Localization Network
+        self.localization1 = LocalNet(3, [200, 300, 200])
+        self.localization2 = LocalNet(100, [150, 150, 150])
 
         # Regressor for the 3 * 2 affine matrix
-        self.fc_loc = nn.Sequential(
-            nn.Linear(1700, 100),
+        self.fc_loc1 = nn.Sequential(
+            nn.Linear(7200, 1000),
+            nn.ReLU(True),
+            nn.Linear(1000, 3 * 2)
+        )
+
+        self.fc_loc2 = nn.Sequential(
+            nn.Linear(1350, 100),
             nn.ReLU(True),
             nn.Linear(100, 3 * 2)
         )
 
         # Initialize the weights/bias with identity transformation
-        self.fc_loc[2].weight.data.fill_(0)
-        self.fc_loc[2].bias.data = torch.FloatTensor([1, 0, 0, 0, 1, 0])
+        self.fc_loc1[2].weight.data.fill_(0)
+        self.fc_loc1[2].bias.data = torch.FloatTensor([1, 0, 0, 0, 1, 0])
+
+        self.fc_loc2[2].weight.data.fill_(0)
+        self.fc_loc2[2].bias.data = torch.FloatTensor([1, 0, 0, 0, 1, 0])
 
     # Spatial transformer network forward function
-    def stn(self, x):
-        xs = self.localization(x)
-        theta = self.fc_loc(xs)
+    def stn(self, x, cnt):
+        if cnt == 1:
+            xs = self.localization1(x)
+            theta = self.fc_loc1(xs)
+        else:
+            xs = self.localization2(x)
+            theta = self.fc_loc2(xs)
+        
         theta = theta.view(-1, 2, 3)
 
         grid = F.affine_grid(theta, x.size())
@@ -210,14 +224,18 @@ class SpaNet(nn.Module):
         x = self.colorization(x)
 
         # transform the input
-        x = self.stn(x)
+        x = self.stn(x, 1)
 
         # Perform the usual froward pass
         x = F.relu(F.max_pool2d(self.bn1(self.conv1(x)), 2))
+        
+        # Second transform
+        x = self.stn(x, 2)
+        
         x = F.relu(F.max_pool2d(F.dropout2d(self.bn2(self.conv2(x))), 2))
         x = F.relu(F.max_pool2d(F.dropout2d(self.bn3(self.conv3(x))), 2))
         x = F.relu(F.max_pool2d(F.dropout2d(self.bn4(self.conv4(x))), 2))
-        x = x.view(-1, 1000)
+        x = x.view(-1, 2250)
         x = F.relu(self.fc1(x))
         x = F.dropout(x, training=self.training)
         x = self.fc2(x)
